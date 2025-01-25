@@ -148,10 +148,10 @@ jobs:
     - name: Prepare Output Directory
       run: |
         mkdir -p ${{ github.workspace }}/rpi-kernel-output
-        sudo chown $USER /tmp/rpi-linux/arch/arm64 -R
+        sudo chown $USER /tmp/rpi-linux/arch/kernel/arm64 -R
         tree /tmp/rpi-linux/kernel/arch/arm64  
         # Copy kernel
-        cp /tmp/rpi-linux/kernel/arch/arm64/boot/Image ${{ github.workspace }}/rpi-kernel-output/kernel
+        cp /tmp/rpi-linux/kernel/arch/arm64/boot/Image ${{ github.workspace }}/rpi-kernel-output/kernel -v
         
         # Find and copy device trees
         echo "Finding DTB files..."
