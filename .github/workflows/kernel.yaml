@@ -11,6 +11,8 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly build to check for updates
 
 jobs:
   build-rpi-kernel:
@@ -35,30 +37,78 @@ jobs:
           gcc \
           device-tree-compiler \
           jq \
-          curl
+          curl \
+          ccache
+
+    # Cache GitHub Actions
+    - name: Prepare ccache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.ccache
+          /tmp/ccache
+        key: ${{ runner.os }}-ccache-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-ccache-
+
+    # Cache kernel source
+    - name: Check for Cached Kernel Source
+      id: kernel-cache
+      uses: actions/cache@v4
+      with:
+        path: /tmp/rpi-linux/kernel
+        key: rpi-linux-kernel-${{ hashFiles('**/latest-kernel-version.txt') }}
+        restore-keys: |
+          rpi-linux-kernel-
 
     - name: Determine Kernel Version
       id: kernel_version
       run: |
+        # Create version tracking file
+        mkdir -p /tmp/rpi-linux
+        
         if [ -n "${{ github.event.inputs.kernel_version }}" ]; then
-          echo "version=${{ github.event.inputs.kernel_version }}" >> $GITHUB_OUTPUT
+          # Use manually specified version
+          version="${{ github.event.inputs.kernel_version }}"
         else
           # Fetch latest Raspberry Pi kernel tag
-          latest_tag=$(curl -s https://api.github.com/repos/raspberrypi/linux/tags \
+          version=$(curl -s https://api.github.com/repos/raspberrypi/linux/tags \
             | jq -r '[.[] | select(.name | startswith("raspberrypi-"))] | max_by(.name) | .name' \
             | sed 's/^raspberrypi-//')
-          echo "version=$latest_tag" >> $GITHUB_OUTPUT
         fi
+        
+        # Store version for caching and reference
+        echo "$version" > /tmp/rpi-linux/latest-kernel-version.txt
+        echo "version=$version" >> $GITHUB_OUTPUT
 
     - name: Clone Raspberry Pi Linux Kernel
+      if: steps.kernel-cache.outputs.cache-hit != 'true'
       run: |
-        mkdir -p /tmp/rpi-linux
-        cd /tmp/rpi-linux
-        git clone --depth 1 --branch "raspberrypi-${{ steps.kernel_version.outputs.version }}" https://github.com/raspberrypi/linux.git kernel
+        mkdir -p /tmp/rpi-linux/kernel
+        cd /tmp/rpi-linux/kernel
+        git clone --depth 1 --branch "raspberrypi-${{ steps.kernel_version.outputs.version }}" https://github.com/raspberrypi/linux.git .
+
+    # Cached build artifacts
+    - name: Check for Cached Kernel Build
+      id: kernel-build-cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          /tmp/rpi-linux/kernel/arch/arm64/boot/Image
+          /tmp/rpi-linux/kernel/arch/arm64/boot/dts
+        key: rpi-linux-kernel-build-${{ steps.kernel_version.outputs.version }}-${{ hashFiles('/tmp/rpi-linux/kernel/.config') }}
 
     - name: Configure Kernel
+      if: steps.kernel-build-cache.outputs.cache-hit != 'true'
       run: |
         cd /tmp/rpi-linux/kernel
+        
+        # Enable ccache
+        export PATH="/usr/lib/ccache:$PATH"
+        export CCACHE_DIR=~/.ccache
+        ccache -z
+        
+        # Kernel configuration
         make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig
 
         # Add custom configuration
@@ -100,9 +150,19 @@ jobs:
         EOF
 
     - name: Build Kernel
+      if: steps.kernel-build-cache.outputs.cache-hit != 'true'
       run: |
         cd /tmp/rpi-linux/kernel
+        
+        # Enable ccache
+        export PATH="/usr/lib/ccache:$PATH"
+        export CCACHE_DIR=~/.ccache
+        
+        # Build kernel
         make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j$(nproc) Image dtbs modules
+        
+        # Show ccache statistics
+        ccache -s
 
     - name: Prepare Output Directory
       run: |
@@ -111,9 +171,26 @@ jobs:
         # Copy kernel
         cp /tmp/rpi-linux/kernel/arch/arm64/boot/Image ${{ github.workspace }}/rpi-kernel-output/kernel
         
-        # Copy device trees for Pi 4 and Pi 5
-        cp /tmp/rpi-linux/kernel/arch/arm64/boot/dts/broadcom/bcm2711-rpi-4-b.dtb ${{ github.workspace }}/rpi-kernel-output/pi4.dtb
-        cp /tmp/rpi-linux/kernel/arch/arm64/boot/dts/broadcom/bcm2712-rpi-5-b.dtb ${{ github.workspace }}/rpi-kernel-output/pi5.dtb
+        # Find and copy device trees
+        echo "Finding DTB files..."
+        dtb_files=$(find /tmp/rpi-linux/kernel -name "*.dtb")
+        
+        # Counter for DTB files
+        dtb_count=0
+        
+        for dtb in $dtb_files; do
+          # Extract filename
+          filename=$(basename "$dtb")
+          
+          # Check for specific Pi models or interesting DTBs
+          if [[ "$filename" == *"rpi-4-b"* || "$filename" == *"rpi-5-b"* || "$filename" == *"versatile"* ]]; then
+            echo "Copying DTB: $dtb"
+            cp "$dtb" "${{ github.workspace }}/rpi-kernel-output/dtb_${dtb_count}.dtb"
+            ((dtb_count++))
+          fi
+        done
+        
+        echo "Found and copied $dtb_count DTB files"
 
     - name: Create Kernel Modules Archive
       run: |
@@ -128,6 +205,10 @@ jobs:
         echo "Kernel Version: ${{ steps.kernel_version.outputs.version }}" > ${{ github.workspace }}/rpi-kernel-output/build-info.txt
         echo "Build Date: $(date)" >> ${{ github.workspace }}/rpi-kernel-output/build-info.txt
         make kernelrelease >> ${{ github.workspace }}/rpi-kernel-output/build-info.txt
+        
+        # List all copied DTB files
+        echo -e "\nCopied DTB Files:" >> ${{ github.workspace }}/rpi-kernel-output/build-info.txt
+        ls ${{ github.workspace }}/rpi-kernel-output/*.dtb >> ${{ github.workspace }}/rpi-kernel-output/build-info.txt
 
     - name: Upload Kernel Artifacts
       uses: actions/upload-artifact@v4
@@ -141,7 +222,7 @@ jobs:
         echo "Output directory contents:"
         ls -la ${{ github.workspace }}/rpi-kernel-output
 
-# Optional: Commit and push kernel artifacts back to repo
+    # Optional: Commit and push kernel artifacts back to repo
     - name: Commit Kernel Artifacts
       run: |
         cd ${{ github.workspace }}
