@@ -38,7 +38,8 @@ jobs:
           device-tree-compiler \
           jq \
           curl \
-          ccache
+          ccache \
+          tree
 
     # Cache GitHub Actions
     - name: Prepare ccache
@@ -167,8 +168,9 @@ jobs:
     - name: Prepare Output Directory
       run: |
         mkdir -p ${{ github.workspace }}/rpi-kernel-output
-        
-        # Copy kernel
+        sudo chown $USER /tmp/rpi-linux/arch/arm64 -R
+        tree /tmp/rpi-linux/kernel/arch/arm64  
+       # Copy kernel
         cp /tmp/rpi-linux/kernel/arch/arm64/boot/Image ${{ github.workspace }}/rpi-kernel-output/kernel
         
         # Find and copy device trees
