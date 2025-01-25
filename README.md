@@ -6,9 +6,6 @@
 
 [![Docker Pulls](https://badgen.net/docker/pulls/lukechilds/dockerpi?icon=docker&label=Docker%20pulls)](https://hub.docker.com/r/lukechilds/dockerpi/)
 [![Docker Image Size](https://badgen.net/docker/size/lukechilds/dockerpi/latest/amd64?icon=docker&label=lukechilds/dockerpi)](https://hub.docker.com/r/lukechilds/dockerpi/tags)
-[![GitHub Donate](https://badgen.net/badge/GitHub/Sponsor/D959A7?icon=github)](https://github.com/sponsors/lukechilds)
-[![Bitcoin Donate](https://badgen.net/badge/Bitcoin/Donate/F19537?icon=bitcoin)](https://lu.ke/tip/bitcoin)
-[![Lightning Donate](https://badgen.net/badge/Lightning/Donate/F6BC41?icon=bitcoin-lightning)](https://lu.ke/tip/lightning)
 
 > A Virtualised Raspberry Pi inside a Docker image
 
@@ -23,7 +20,7 @@ This is not just a Raspian Docker image, it's a full ARM based Raspberry Pi virt
 ## Usage
 
 ```
-docker run -it lukechilds/dockerpi
+docker run -it brrock/dockerpi # coming soon
 ```
 
 By default all filesystem changes will be lost on shutdown. You can persist filesystem changes between reboots by mounting the `/sdcard` volume on your host:
@@ -48,15 +45,13 @@ docker run -it -v /2019-09-26-raspbian-buster-lite.img:/sdcard/filesystem.img lu
 ```
 
 ## Which machines are supported?
-
-By default a Raspberry Pi 1 is virtualised, however experimental support has been added for Pi 2 and Pi 3 machines.
-
+Suppourt for pi 4 and pi 5 will be added and variants for custom ram like 8 and 16gb
 You can specify a machine by passing the name as a CLI argument:
 
 ```
-docker run -it lukechilds/dockerpi pi1
-docker run -it lukechilds/dockerpi pi2
-docker run -it lukechilds/dockerpi pi3
+docker run -it brrock/dockerpi pi4
+docker run -it brrock/dockerpi pi5
+docker run -it brrock/dockerpi pi5-8gb
 ```
 
 > **Note:** In the Pi 2 and Pi 3 machines, QEMU hangs once the machines are powered down requiring you to `docker kill` the container. See [#4](https://github.com/lukechilds/dockerpi/pull/4) for details.
@@ -106,11 +101,7 @@ Build the VM only image with:
 ```
 docker build -t lukechilds/dockerpi:vm --target dockerpi-vm .
 ```
-
-## Credit
-
-Thanks to [@dhruvvyas90](https://github.com/dhruvvyas90) for his [dhruvvyas90/qemu-rpi-kernel](https://github.com/dhruvvyas90/qemu-rpi-kernel) repo.
-
+## Credits
+@lukechilds for orginal idea and repo. Kernel imgs are self maintained and built with a gh actopm
 ## License
-
-MIT © Luke Childs
+MIT Benjy Ross 2025
