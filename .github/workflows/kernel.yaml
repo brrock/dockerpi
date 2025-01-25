@@ -62,33 +62,13 @@ jobs:
         restore-keys: |
           rpi-linux-kernel-
 
-    - name: Determine Kernel Version
-      id: kernel_version
-      run: |
-        # Create version tracking file
-        mkdir -p /tmp/rpi-linux
-        
-        if [ -n "${{ github.event.inputs.kernel_version }}" ]; then
-          # Use manually specified version
-          version="${{ github.event.inputs.kernel_version }}"
-        else
-          # Fetch latest Raspberry Pi kernel tag
-          version=$(curl -s https://api.github.com/repos/raspberrypi/linux/tags \
-            | jq -r '[.[] | select(.name | startswith("raspberrypi-"))] | max_by(.name) | .name' \
-            | sed 's/^raspberrypi-//')
-        fi
-        
-        # Store version for caching and reference
-        echo "$version" > /tmp/rpi-linux/latest-kernel-version.txt
-        echo "version=$version" >> $GITHUB_OUTPUT
-
     - name: Clone Raspberry Pi Linux Kernel
       if: steps.kernel-cache.outputs.cache-hit != 'true'
       run: |
         mkdir -p /tmp/rpi-linux/kernel
         cd /tmp/rpi-linux/kernel
-        git clone --depth 1 --branch "raspberrypi-${{ steps.kernel_version.outputs.version }}" https://github.com/raspberrypi/linux.git .
-
+        git clone --depth 1 https://github.com/raspberrypi/linux.git .
+        git checkout $(git describe --tags $(git rev-list --tags --max-count=1)) # Checkout the latest tag
     # Cached build artifacts
     - name: Check for Cached Kernel Build
       id: kernel-build-cache
