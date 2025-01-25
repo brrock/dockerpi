@@ -1,0 +1,162 @@
+name: Raspberry Pi Kernel Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      kernel_version:
+        description: 'Specific kernel version (optional)'
+        required: false
+        default: ''
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-rpi-kernel:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          git \
+          wget \
+          bc \
+          libncurses5-dev \
+          gcc-aarch64-linux-gnu \
+          flex \
+          bison \
+          make \
+          gcc \
+          device-tree-compiler \
+          jq \
+          curl
+
+    - name: Determine Kernel Version
+      id: kernel_version
+      run: |
+        if [ -n "${{ github.event.inputs.kernel_version }}" ]; then
+          echo "version=${{ github.event.inputs.kernel_version }}" >> $GITHUB_OUTPUT
+        else
+          # Fetch latest Raspberry Pi kernel tag
+          latest_tag=$(curl -s https://api.github.com/repos/raspberrypi/linux/tags \
+            | jq -r '[.[] | select(.name | startswith("raspberrypi-"))] | max_by(.name) | .name' \
+            | sed 's/^raspberrypi-//')
+          echo "version=$latest_tag" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Clone Raspberry Pi Linux Kernel
+      run: |
+        mkdir -p /tmp/rpi-linux
+        cd /tmp/rpi-linux
+        git clone --depth 1 --branch "raspberrypi-${{ steps.kernel_version.outputs.version }}" https://github.com/raspberrypi/linux.git kernel
+
+    - name: Configure Kernel
+      run: |
+        cd /tmp/rpi-linux/kernel
+        make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig
+
+        # Add custom configuration
+        cat >> .config << EOF
+        # ARM64 QEMU and Raspberry Pi specific configurations
+        CONFIG_ARCH_BCM2835=y
+        CONFIG_ARCH_BCM2710=y
+        CONFIG_ARCH_BCM2711=y
+        CONFIG_ARCH_BCM2712=y
+        CONFIG_ARM64=y
+        CONFIG_RANDOMIZE_BASE=y
+        CONFIG_CMDLINE="console=ttyAMA0"
+
+        # QEMU Virtualization support
+        CONFIG_VIRTUALIZATION=y
+        CONFIG_KVM=y
+        CONFIG_KVM_ARM_HOST=y
+
+        # File systems
+        CONFIG_OVERLAY_FS=y
+        CONFIG_SQUASHFS=y
+        CONFIG_NFS_FS=y
+        CONFIG_ROOT_NFS=y
+
+        # Network
+        CONFIG_NETDEVICES=y
+        CONFIG_NET_9P=y
+        CONFIG_NET_9P_VIRTIO=y
+        CONFIG_VIRTIO_NET=y
+
+        # Block devices
+        CONFIG_VIRTIO_BLK=y
+        CONFIG_BLK_DEV_SD=y
+
+        # Other useful configs
+        CONFIG_MODULES=y
+        CONFIG_MODULE_UNLOAD=y
+        CONFIG_MODVERSIONS=y
+        EOF
+
+    - name: Build Kernel
+      run: |
+        cd /tmp/rpi-linux/kernel
+        make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j$(nproc) Image dtbs modules
+
+    - name: Prepare Output Directory
+      run: |
+        mkdir -p ${{ github.workspace }}/rpi-kernel-output
+        
+        # Copy kernel
+        cp /tmp/rpi-linux/kernel/arch/arm64/boot/Image ${{ github.workspace }}/rpi-kernel-output/kernel
+        
+        # Copy device trees for Pi 4 and Pi 5
+        cp /tmp/rpi-linux/kernel/arch/arm64/boot/dts/broadcom/bcm2711-rpi-4-b.dtb ${{ github.workspace }}/rpi-kernel-output/pi4.dtb
+        cp /tmp/rpi-linux/kernel/arch/arm64/boot/dts/broadcom/bcm2712-rpi-5-b.dtb ${{ github.workspace }}/rpi-kernel-output/pi5.dtb
+
+    - name: Create Kernel Modules Archive
+      run: |
+        cd /tmp/rpi-linux/kernel
+        make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- INSTALL_MOD_PATH=${{ github.workspace }}/rpi-kernel-output/modules modules_install
+        cd ${{ github.workspace }}/rpi-kernel-output/modules
+        tar -czvf ../kernel-modules.tar.gz .
+
+    - name: Generate Build Info
+      run: |
+        cd /tmp/rpi-linux/kernel
+        echo "Kernel Version: ${{ steps.kernel_version.outputs.version }}" > ${{ github.workspace }}/rpi-kernel-output/build-info.txt
+        echo "Build Date: $(date)" >> ${{ github.workspace }}/rpi-kernel-output/build-info.txt
+        make kernelrelease >> ${{ github.workspace }}/rpi-kernel-output/build-info.txt
+
+    - name: Upload Kernel Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: rpi-arm64-kernel
+        path: ${{ github.workspace }}/rpi-kernel-output
+        retention-days: 30
+
+    - name: List Output Contents
+      run: |
+        echo "Output directory contents:"
+        ls -la ${{ github.workspace }}/rpi-kernel-output
+
+# Optional: Commit and push kernel artifacts back to repo
+    - name: Commit Kernel Artifacts
+      run: |
+        cd ${{ github.workspace }}
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        # Stage kernel output
+        git add rpi-kernel-output
+        
+        # Check if there are changes
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "Update Raspberry Pi ARM64 Kernel Artifacts (${GITHUB_SHA})"
+          git push
+        fi
+      # Only commit if on main branch
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
