@@ -9,15 +9,15 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: Build dockerpi:vm
-        run: docker build -t lukechilds/dockerpi:vm --target dockerpi-vm .
+        run: docker build -t brrock/dockerpi:vm --target dockerpi-vm .
       - name: Build dockerpi
-        run: docker build -t lukechilds/dockerpi:latest --target dockerpi .
+        run: docker build -t brrock/dockerpi:latest --target dockerpi .
       - name: Log image data
-        run: docker images lukechilds/dockerpi
+        run: docker images brrock/dockerpi
       - name: Save image tarballs
         run: |
           mkdir -p images
-          images=$(docker images lukechilds/dockerpi --format "{{.Repository}}:{{.Tag}}")
+          images=$(docker images brrock/dockerpi --format "{{.Repository}}:{{.Tag}}")
           for image in $images; do
             docker save $image | gzip > "images/$(echo $image | tr '/' '-' | tr ':' '-').tgz"
           done
@@ -43,8 +43,8 @@ jobs:
       - name: Load image tarballs
         run: for image in images/*; do docker load -i $image; done
       - name: Log image data
-        run: docker images lukechilds/dockerpi
+        run: docker images brrock/dockerpi
       - name: Login to Docker Hub
-        run: echo "${{secrets.DOCKER_TOKEN}}" | docker login -u=lukechilds --password-stdin
+        run: echo "${{secrets.DOCKER_TOKEN}}" | docker login -u=brrock --password-stdin
       - name: Push to Docker Hub
-        run: docker push --all-tags lukechilds/dockerpi
+        run: docker push --all-tags brrock/dockerpi
