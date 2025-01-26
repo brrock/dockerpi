@@ -7,6 +7,7 @@ on:
 
 env:
   DOCKER_BUILDKIT: 1
+  BUILDKIT_CONTAINERD: 1
 
 jobs:
   build:
@@ -17,7 +18,10 @@ jobs:
       - uses: actions/checkout@v3
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        
+        with:
+          install: true
+          driver-opts: image=moby/buildkit:master,network=host
+
       # Cache Docker layers to speed up builds
       - name: Cache Docker layers
         uses: actions/cache@v4
