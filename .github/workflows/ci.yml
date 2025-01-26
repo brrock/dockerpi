@@ -32,10 +32,10 @@ jobs:
             ${{ runner.os }}-build-
 
       - name: Build dockerpi:vm
-        run: docker build --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache -t brrock/dockerpi:vm --target dockerpi-vm .
+        run: docker build --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache --load -t brrock/dockerpi:vm --target dockerpi-vm .
 
       - name: Build dockerpi
-        run: docker build --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache -t brrock/dockerpi:latest --target dockerpi .
+        run: docker build --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache --load -t brrock/dockerpi:latest --target dockerpi .
 
       - name: Log image data
         run: docker images brrock/dockerpi
