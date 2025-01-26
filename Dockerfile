@@ -18,7 +18,8 @@ RUN apt-get update && apt-get install -y \
     libgpiod-dev \
     libusb-1.0-0-dev \
     libsystemd-dev \
-    libudev-dev
+    libudev-dev \
+    python3-venv
 
 # Download and verify QEMU source
 WORKDIR /qemu
