@@ -52,8 +52,7 @@ RUN cd "qemu-${QEMU_VERSION}" && \
 # gpio time
 FROM debian:stable-slim AS gpio-builder
 RUN apt-get update && apt-get install -y \
-    gpiod \
-    libgpiod-tools
+    gpiod 
 # Fatcat builder stage
 
 FROM debian:stable-slim AS fatcat-builder
@@ -82,11 +81,12 @@ COPY --from=gpio-builder /usr/bin/gpioinfo /usr/local/bin/gpioinfo
 COPY --from=gpio-builder /usr/bin/gpioget /usr/local/bin/gpioget
 COPY --from=gpio-builder /usr/bin/gpioset /usr/local/bin/gpioset
 
-# Make them executable
+# Ensure the binaries are executable
 RUN chmod +x /usr/local/bin/gpiodetect \
     /usr/local/bin/gpioinfo \
     /usr/local/bin/gpioget \
     /usr/local/bin/gpioset
+
 # Copy QEMU and supporting binaries
 COPY --from=qemu-builder /qemu/qemu-${QEMU_VERSION}/aarch64-softmmu/qemu-system-aarch64 /usr/local/bin/qemu-system-aarch64
 COPY --from=qemu-builder /qemu/qemu-${QEMU_VERSION}/arm-softmmu/qemu-system-arm /usr/local/bin/qemu-system-arm
