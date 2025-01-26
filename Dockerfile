@@ -21,33 +21,11 @@ RUN apt-get update && apt-get install -y \
     libudev-dev \
     python3-venv \
     libepoxy-dev \
-    pkg-config
+    pkg-config \
+    qemu=${QEMU_VERSION}-*
 
-# Download and verify QEMU source
-WORKDIR /qemu
-RUN wget "https://download.qemu.org/qemu-${QEMU_VERSION}.tar.xz"
-RUN wget "https://download.qemu.org/qemu-${QEMU_VERSION}.tar.xz.sig"
-
-RUN gpg --keyserver keyserver.ubuntu.com --recv-keys CEACC9E15534EBABB82D3FA03353C9CEF108B584
-RUN gpg --verify "qemu-${QEMU_VERSION}.tar.xz.sig" "qemu-${QEMU_VERSION}.tar.xz"
-
-# Extract and build QEMU with extensive GPIO and device support
-RUN tar xvf "qemu-${QEMU_VERSION}.tar.xz"
-RUN cd "qemu-${QEMU_VERSION}" && \
-    ./configure \
-    --target-list=aarch64-softmmu,arm-softmmu \
-    --enable-system \
-    --enable-linux-user \
-    --disable-werror \
-    --enable-kvm \
-    --enable-opengl \
-    --enable-libusb \
-    --enable-libudev \
-    --enable-virtfs \
-    --audio-drv-list=alsa,pa
-
-RUN cd "qemu-${QEMU_VERSION}" && \
-    make -j$(nproc)
+# Verify installation
+RUN qemu --version
 
 # gpio time
 FROM debian:stable-slim AS gpio-builder
