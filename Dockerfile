@@ -116,7 +116,7 @@ ADD $FILESYSTEM_IMAGE_URL /filesystem.img.xz
 RUN echo "${FILESYSTEM_IMAGE_CHECKSUM}  /filesystem.img.xz" | sha256sum -c && \
     xz -d /filesystem.img.xz && \
     mv filesystem.img /sdcard
-
+RUN ls /sdcard -alh
 # Resize Filesystem
 RUN qemu-img resize /sdcard/filesystem.img +2G
 
