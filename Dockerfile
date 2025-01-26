@@ -38,7 +38,6 @@ RUN cd "qemu-${QEMU_VERSION}" && \
     --disable-werror \
     --enable-kvm \
     --enable-opengl \
-    --enable-gpio \
     --enable-usb \
     --enable-libusb \
     --enable-libudev \
@@ -52,8 +51,8 @@ RUN cd "qemu-${QEMU_VERSION}" && \
 FROM debian:stable-slim AS gpio-builder
 RUN apt-get update && apt-get install -y \
     gpiod 
-# Fatcat builder stage
 
+# Fatcat builder stage
 FROM debian:stable-slim AS fatcat-builder
 ARG FATCAT_VERSION=v1.1.0
 
