@@ -86,7 +86,9 @@ main() {
     -display none \
     -serial mon:stdio \
     $EXTRA_ARGS \
-    -append "root=${ROOT} rootwait console=ttyAMA0,115200 quiet"
+    -append "root=${ROOT} rootwait console=ttyAMA0,115200 quiet" \
+    -no-user-config
+    
 }
 
 # Execute main function with arguments
