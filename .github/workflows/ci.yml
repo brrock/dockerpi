@@ -67,6 +67,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: images
+          path: images/
 
       - name: Print sha256sum of all images
         run: sha256sum images/*
