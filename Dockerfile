@@ -38,7 +38,6 @@ RUN cd "qemu-${QEMU_VERSION}" && \
     --disable-werror \
     --enable-kvm \
     --enable-opengl \
-    --enable-usb \
     --enable-libusb \
     --enable-libudev \
     --enable-virtfs \
