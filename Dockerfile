@@ -49,7 +49,13 @@ RUN cd "qemu-${QEMU_VERSION}" && \
 RUN cd "qemu-${QEMU_VERSION}" && \
     make -j$(nproc)
 
+# gpio time
+FROM debian:stable-slim AS gpio-builder
+RUN apt-get update && apt-get install -y \
+    gpiod \
+    libgpiod-tools
 # Fatcat builder stage
+
 FROM debian:stable-slim AS fatcat-builder
 ARG FATCAT_VERSION=v1.1.0
 
@@ -68,12 +74,19 @@ RUN make -j$(nproc)
 
 # DockerPi VM Stage with GPIO Support
 FROM busybox:latest AS dockerpi-vm
-LABEL maintainer="Luke Childs <benjy@benjyross.xyz>"
+LABEL maintainer="Benjy Ross <benjy@benjyross.xyz>"
 
 # Install GPIO support tools
-RUN wget https://github.com/raspberrypi/userland/raw/master/build/bin/raspberrypi/release/gpio -O /usr/local/bin/gpio
-RUN chmod +x /usr/local/bin/gpio
+COPY --from=gpio-builder /usr/bin/gpiodetect /usr/local/bin/gpiodetect
+COPY --from=gpio-builder /usr/bin/gpioinfo /usr/local/bin/gpioinfo
+COPY --from=gpio-builder /usr/bin/gpioget /usr/local/bin/gpioget
+COPY --from=gpio-builder /usr/bin/gpioset /usr/local/bin/gpioset
 
+# Make them executable
+RUN chmod +x /usr/local/bin/gpiodetect \
+    /usr/local/bin/gpioinfo \
+    /usr/local/bin/gpioget \
+    /usr/local/bin/gpioset
 # Copy QEMU and supporting binaries
 COPY --from=qemu-builder /qemu/qemu-${QEMU_VERSION}/aarch64-softmmu/qemu-system-aarch64 /usr/local/bin/qemu-system-aarch64
 COPY --from=qemu-builder /qemu/qemu-${QEMU_VERSION}/arm-softmmu/qemu-system-arm /usr/local/bin/qemu-system-arm
@@ -107,7 +120,7 @@ ENTRYPOINT ["/entrypoint.sh"]
 
 # Filesystem Stage
 FROM dockerpi-vm AS dockerpi
-LABEL maintainer="Luke Childs <benjy@benjyross.xyz>"
+LABEL maintainer="Benjy Ross <benjy@benjyross.xyz>"
 
 # Raspbian Lite Image
 ARG FILESYSTEM_IMAGE_URL="https://downloads.raspberrypi.org/raspbian_lite/images/raspbian_lite-2023-12-11/2023-12-11-raspbian-bookworm-lite.img.xz"
