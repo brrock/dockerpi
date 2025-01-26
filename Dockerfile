@@ -23,8 +23,7 @@ RUN apt-get update && apt-get install -y \
     libepoxy-dev \
     pkg-config \
     qemu-system-aarch64 \
-    qemu-utils \
-    qemu-full
+    qemu-utils 
 
 # Download and verify QEMU source
 WORKDIR /qemu
