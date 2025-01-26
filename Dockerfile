@@ -37,7 +37,6 @@ RUN cd "qemu-${QEMU_VERSION}" && \
     --enable-linux-user \
     --disable-werror \
     --enable-kvm \
-    --enable-virgl \
     --enable-opengl \
     --enable-gpio \
     --enable-usb \
