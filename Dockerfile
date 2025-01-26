@@ -102,8 +102,8 @@ FROM dockerpi-vm AS dockerpi
 LABEL maintainer="Benjy Ross <benjy@benjyross.xyz>"
 
 # Raspbian Lite Image
-ARG FILESYSTEM_IMAGE_URL="https://downloads.raspberrypi.org/raspbian_lite/images/raspbian_lite-2023-12-11/2023-12-11-raspbian-bookworm-lite.img.xz"
-ARG FILESYSTEM_IMAGE_CHECKSUM="3f5b121a2f10dad5e121b22ee569a047aab9cc216e9d3fd40b994ee12cc16e93"
+ARG FILESYSTEM_IMAGE_URL="https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2024-11-19/2024-11-19-raspios-bookworm-arm64-lite.img.xz"
+ARG FILESYSTEM_IMAGE_CHECKSUM="6ac3a10a1f144c7e9d1f8e568d75ca809288280a593eb6ca053e49b539f465a4"
 
 # Download and Prepare Filesystem
 ADD $FILESYSTEM_IMAGE_URL /filesystem.xz
