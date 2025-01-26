@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y \
     python3-venv \
     libepoxy-dev \
     pkg-config \
-    qemu=${QEMU_VERSION}-*
+    qemu-*
 
 # Verify installation
 RUN qemu --version
