@@ -55,6 +55,10 @@ RUN make -j$(nproc)
 FROM busybox:latest AS dockerpi-vm
 LABEL maintainer="Benjy Ross <benjy@benjyross.xyz>"
 
+# Copy NUMA libraries explicitly
+COPY --from=qemu-builder /usr/lib/x86_64-linux-gnu/libnuma.so.1 /usr/lib/
+COPY --from=qemu-builder /usr/lib/x86_64-linux-gnu/libnuma.so /usr/lib/
+
 # Install GPIO support tools
 COPY --from=gpio-builder /usr/bin/gpiodetect /usr/local/bin/gpiodetect
 COPY --from=gpio-builder /usr/bin/gpioinfo /usr/local/bin/gpioinfo
@@ -72,6 +76,8 @@ COPY --from=qemu-builder /usr/bin/qemu-system-aarch64 /usr/local/bin/qemu-system
 COPY --from=qemu-builder /usr/bin/qemu-img /usr/local/bin/qemu-img
 COPY --from=fatcat-builder /fatcat/fatcat /usr/local/bin/fatcat
 
+# Additional library path for runtime
+ENV LD_LIBRARY_PATH=/usr/lib:$LD_LIBRARY_PATH
 # Kernel and Device Tree Support
 RUN mkdir -p /root/kernels/pi4 /root/kernels/pi5
 
