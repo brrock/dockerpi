@@ -21,32 +21,13 @@ RUN apt-get update && apt-get install -y \
     libudev-dev \
     python3-venv \
     libepoxy-dev \
-    pkg-config
+    pkg-config \
+    qemu-system-aarch64 \
+    qemu-utils
 
 # Download and verify QEMU source
 WORKDIR /qemu
-RUN wget "https://download.qemu.org/qemu-${QEMU_VERSION}.tar.xz"
-RUN wget "https://download.qemu.org/qemu-${QEMU_VERSION}.tar.xz.sig"
 
-RUN gpg --keyserver keyserver.ubuntu.com --recv-keys CEACC9E15534EBABB82D3FA03353C9CEF108B584
-RUN gpg --verify "qemu-${QEMU_VERSION}.tar.xz.sig" "qemu-${QEMU_VERSION}.tar.xz"
-
-# Extract and build QEMU with extensive GPIO and device support
-RUN tar xvf "qemu-${QEMU_VERSION}.tar.xz"
-RUN cd "qemu-${QEMU_VERSION}" && \
-    ./configure \
-    --target-list=aarch64-softmmu,arm-softmmu \
-    --enable-system \
-    --enable-linux-user \
-    --disable-werror \
-    --enable-kvm \
-    --enable-opengl \
-    --enable-libusb \
-    --enable-libudev \
-    --enable-virtfs 
-
-RUN cd "qemu-${QEMU_VERSION}" && \
-    make -j$(nproc)
 
 # gpio time
 FROM debian:stable-slim AS gpio-builder
@@ -87,8 +68,8 @@ RUN chmod +x /usr/local/bin/gpiodetect \
     /usr/local/bin/gpioset
 
 # Copy QEMU and supporting binaries
-COPY --from=qemu-builder /qemu/qemu-9.2.0/aarch64-softmmu/qemu-system-aarch64 /usr/local/bin/qemu-system-aarch64
-COPY --from=qemu-builder /qemu/qemu-9.2.0/qemu-img /usr/local/bin/qemu-img
+COPY --from=qemu-builder /usr/bin/qemu-system-aarch64 /usr/local/bin/qemu-system-aarch64
+COPY --from=qemu-builder /usr/bin/qemu-img /usr/local/bin/qemu-img
 COPY --from=fatcat-builder /fatcat/fatcat /usr/local/bin/fatcat
 
 # Kernel and Device Tree Support

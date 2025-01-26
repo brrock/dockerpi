@@ -1,19 +1,39 @@
 name: Docker CI
-on: push
+
+on: 
+  push:
+    branches:
+      - main
+
 env:
   DOCKER_BUILDKIT: 1
+
 jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v3
+
+      # Cache Docker layers to speed up builds
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-build-${{ github.sha }}  # Cache key based on OS and commit SHA.
+          restore-keys: |
+            ${{ runner.os }}-build-
+
       - name: Build dockerpi:vm
         run: docker build -t brrock/dockerpi:vm --target dockerpi-vm .
+
       - name: Build dockerpi
         run: docker build -t brrock/dockerpi:latest --target dockerpi .
+
       - name: Log image data
         run: docker images brrock/dockerpi
+
       - name: Save image tarballs
         run: |
           mkdir -p images
@@ -21,13 +41,16 @@ jobs:
           for image in $images; do
             docker save $image | gzip > "images/$(echo $image | tr '/' '-' | tr ':' '-').tgz"
           done
+
       - name: Print sha256sum of built image
         run: sha256sum images/*
+
       - name: Upload image tarballs
         uses: actions/upload-artifact@v3
         with:
           name: images
           path: images/
+
   publish:
     name: Publish
     if: github.ref == 'refs/heads/master'
@@ -38,13 +61,19 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: images
+
       - name: Print sha256sum of all images
         run: sha256sum images/*
+
       - name: Load image tarballs
         run: for image in images/*; do docker load -i $image; done
+
       - name: Log image data
         run: docker images brrock/dockerpi
+
       - name: Login to Docker Hub
         run: echo "${{secrets.DOCKER_TOKEN}}" | docker login -u=brrock --password-stdin
+
       - name: Push to Docker Hub
         run: docker push --all-tags brrock/dockerpi
+``
