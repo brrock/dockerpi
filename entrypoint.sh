@@ -21,8 +21,6 @@ ram_config() {
   local ram_size="$2"
   
   case "${model}-${ram_size}" in
-    "pi3-1g")    echo "1024m" ;;
-    "pi3-2g")    echo "2048m" ;;
     "pi4-1g")    echo "1024m" ;;
     "pi4-2g")    echo "2048m" ;;
     "pi4-4g")    echo "4096m" ;;
@@ -40,15 +38,6 @@ model_config() {
   local ram_size="$2"
 
   case "${target}" in
-    "pi3")
-      EMULATOR="qemu-system-aarch64"
-      MACHINE="raspi3b"
-      KERNEL="/root/kernels/pi3/kernel8.img"
-      DTB="/root/kernels/pi3/bcm2710-rpi-3-b-plus.dtb"
-      RAM=$(ram_config "pi3" "${ram_size}")
-      ROOT="/dev/mmcblk0p2"
-      ;;
-    
     "pi4")
       EMULATOR="qemu-system-aarch64"
       MACHINE="raspi4b"
