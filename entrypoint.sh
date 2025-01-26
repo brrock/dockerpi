@@ -1,42 +1,96 @@
 #!/bin/sh
+# Raspberry Pi Emulation Script with Enhanced Pi 5 Support
 
-# GPIO Configuration Function
-setup_gpio() {
-  if [ "$PI_GPIO_ENABLED" = "1" ] && [ -e "$PI_GPIO_CHIP" ]; then
-    echo "Configuring GPIO Passthrough for ${PI_MODEL}"
-    
-    # Export GPIO chip to container
-    chmod 666 "$PI_GPIO_CHIP"
-    
-    # Additional GPIO configuration can be added here
-    # For example: setting up specific GPIO pins, permissions, etc.
-  else
-    echo "GPIO support disabled or device not found"
+# Constants
+GIB_IN_BYTES="1073741824"
+DEFAULT_TARGET="pi4"
+IMAGE_PATH="/sdcard/filesystem.img"
+ZIP_PATH="/filesystem.zip"
+
+# Detect and prepare filesystem image
+prepare_filesystem() {
+  if [ ! -e "$IMAGE_PATH" ]; then
+    echo "No filesystem detected at ${IMAGE_PATH}!"
+    if [ -e "$ZIP_PATH" ]; then
+      echo "Extracting fresh filesystem..."
+      unzip "$ZIP_PATH"
+      mv -- *.img "$IMAGE_PATH"
+    else
+      exit 1
+    fi
+  fi
+  
+  # Resize image if needed
+  image_size_in_bytes=$(qemu-img info --output json "$IMAGE_PATH" | grep "virtual-size" | awk '{print $2}' | sed 's/,//')
+  if [[ "$(($image_size_in_bytes % ($GIB_IN_BYTES * 2)))" != "0" ]]; then
+    new_size_in_gib=$((($image_size_in_bytes / ($GIB_IN_BYTES * 2) + 1) * 2))
+    echo "Rounding image size up to ${new_size_in_gib}GiB..."
+    qemu-img resize "$IMAGE_PATH" "${new_size_in_gib}G"
   fi
 }
 
-# RAM Configuration Mapping
-ram_config() {
-  local model="$1"
-  local ram_size="$2"
+# Configure model-specific parameters
+configure_model() {
+  local target="$1"
   
-  case "${model}-${ram_size}" in
-    "pi4-1g")    echo "1024m" ;;
-    "pi4-2g")    echo "2048m" ;;
-    "pi4-4g")    echo "4096m" ;;
-    "pi4-8g")    echo "8192m" ;;
-    "pi5-4g")    echo "4096m" ;;
-    "pi5-8g")    echo "8192m" ;;
-    "pi5-16g")   echo "16384m" ;;
-    *)           echo "4096m" ;; # Default
+  case "$target" in
+    "pi4")
+      EMULATOR="qemu-system-aarch64"
+      MACHINE="raspi4b"
+      KERNEL="/root/kernels/pi4/kernel7l.img"
+      DTB="/root/kernels/pi4/bcm2711-rpi-4-b.dtb"
+      MEMORY="4096m"
+      ROOT="/dev/mmcblk0p2"
+      CPU="cortex-a72"
+      ;;
+    
+    "pi5")
+      # Note: Limited QEMU support for Pi 5
+      EMULATOR="qemu-system-aarch64"
+      MACHINE="virt"  # Fallback to generic virt machine
+      KERNEL="/root/kernels/pi5/kernel_2712.img"
+      DTB="/root/kernels/pi5/bcm2712-rpi-5-b.dtb"
+      MEMORY="8192m"
+      ROOT="/dev/mmcblk0p2"
+      CPU="cortex-a76"
+      # Additional workarounds for Pi 5 emulation
+      EXTRA_ARGS="-cpu max -smp 4"
+      ;;
+    
+    *)
+      echo "Unsupported Raspberry Pi model: ${target}"
+      exit 1
+      ;;
   esac
 }
 
-# Model Configuration Function
-model_config() {
-  local target="$1"
-  local ram_size="$2"
+# Main execution
+main() {
+  local target="${1:-$DEFAULT_TARGET}"
+  
+  # Prepare filesystem
+  prepare_filesystem
+  
+  # Configure model-specific parameters
+  configure_model "$target"
+  
+  # QEMU Launch Command
+  exec "$EMULATOR" \
+    -machine "$MACHINE" \
+    -cpu "$CPU" \
+    -m "$MEMORY" \
+    -kernel "$KERNEL" \
+    -dtb "$DTB" \
+    -drive "file=${IMAGE_PATH},if=sd,format=raw" \
+    -net nic -net user,hostfwd=tcp::5022-:22 \
+    -display none \
+    -serial mon:stdio \
+    $EXTRA_ARGS \
+    -append "root=${ROOT} rootwait console=ttyAMA0,115200 quiet"
+}
 
+# Execute main function with arguments
+main "$@"
   case "${target}" in
     "pi4")
       EMULATOR="qemu-system-aarch64"
