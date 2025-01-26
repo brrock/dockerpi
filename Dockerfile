@@ -57,7 +57,6 @@ LABEL maintainer="Benjy Ross <benjy@benjyross.xyz>"
 
 # Copy NUMA libraries explicitly
 COPY --from=qemu-builder /usr/lib/x86_64-linux-gnu/libnuma.so.1 /usr/lib/
-COPY --from=qemu-builder /usr/lib/x86_64-linux-gnu/libnuma.so /usr/lib/
 
 # Install GPIO support tools
 COPY --from=gpio-builder /usr/bin/gpiodetect /usr/local/bin/gpiodetect
