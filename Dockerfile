@@ -95,11 +95,6 @@ VOLUME /dev/gpiochip0
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Environment Variables for GPIO and PI Configuration
-ENV PI_GPIO_ENABLED=1
-ENV PI_GPIO_CHIP="/dev/gpiochip0"
-ENV PI_MODEL=pi4
-ENV PI_RAM=4g
 
 VOLUME /sdcard
 ENTRYPOINT ["/entrypoint.sh"]
@@ -119,6 +114,3 @@ RUN echo "${FILESYSTEM_IMAGE_CHECKSUM}  /sdcard/filesystem.img.xz" | sha256sum -
 RUN ls /sdcard -alh
 # Resize Filesystem
 RUN qemu-img resize /sdcard/filesystem.img +2G
-
-# Default to Pi 4
-CMD ["pi4"]
