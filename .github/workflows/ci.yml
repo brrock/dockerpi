@@ -15,7 +15,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
       # Cache Docker layers to speed up builds
       - name: Cache Docker layers
         uses: actions/cache@v4
@@ -26,10 +28,10 @@ jobs:
             ${{ runner.os }}-build-
 
       - name: Build dockerpi:vm
-        run: docker build -t brrock/dockerpi:vm --target dockerpi-vm .
+        run: docker build --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache -t brrock/dockerpi:vm --target dockerpi-vm .
 
       - name: Build dockerpi
-        run: docker build -t brrock/dockerpi:latest --target dockerpi .
+        run: docker build --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache -t brrock/dockerpi:latest --target dockerpi .
 
       - name: Log image data
         run: docker images brrock/dockerpi
@@ -53,7 +55,7 @@ jobs:
 
   publish:
     name: Publish
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     needs: build
     steps:
