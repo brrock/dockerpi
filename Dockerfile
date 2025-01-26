@@ -106,9 +106,9 @@ ARG FILESYSTEM_IMAGE_URL="https://downloads.raspberrypi.com/raspios_lite_arm64/i
 ARG FILESYSTEM_IMAGE_CHECKSUM="6ac3a10a1f144c7e9d1f8e568d75ca809288280a593eb6ca053e49b539f465a4"
 
 # Download and Prepare Filesystem
-ADD $FILESYSTEM_IMAGE_URL /filesystem.xz
-RUN echo "${FILESYSTEM_IMAGE_CHECKSUM}  /filesystem.xz" | sha256sum -c && \
-    xz -d /filesystem.xz && \
+ADD $FILESYSTEM_IMAGE_URL /filesystem.img.xz
+RUN echo "${FILESYSTEM_IMAGE_CHECKSUM}  /filesystem.img.xz" | sha256sum -c && \
+    xz -d /filesystem.img.xz && \
     mv *.img /sdcard/filesystem.img
 
 # Resize Filesystem
