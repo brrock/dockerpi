@@ -88,7 +88,6 @@ RUN chmod +x /usr/local/bin/gpiodetect \
 
 # Copy QEMU and supporting binaries
 COPY --from=qemu-builder /qemu/qemu-9.2.0/aarch64-softmmu/qemu-system-aarch64 /usr/local/bin/qemu-system-aarch64
-COPY --from=qemu-builder /qemu/qemu-9.2.0/arm-softmmu/qemu-system-arm /usr/local/bin/qemu-system-arm
 COPY --from=qemu-builder /qemu/qemu-9.2.0/qemu-img /usr/local/bin/qemu-img
 COPY --from=fatcat-builder /fatcat/fatcat /usr/local/bin/fatcat
 
