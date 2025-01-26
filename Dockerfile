@@ -19,7 +19,9 @@ RUN apt-get update && apt-get install -y \
     libusb-1.0-0-dev \
     libsystemd-dev \
     libudev-dev \
-    python3-venv
+    python3-venv \
+    libepoxy-dev \
+    pkg-config
 
 # Download and verify QEMU source
 WORKDIR /qemu
