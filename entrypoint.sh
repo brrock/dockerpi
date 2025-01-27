@@ -9,7 +9,7 @@ IMAGE_PATH="/sdcard/filesystem.img"
 # Detect and prepare filesystem image
 prepare_filesystem() {
 
-  
+  echo "changing size of image"
   # Resize image if needed
   image_size_in_bytes=$(qemu-img info --output json "$IMAGE_PATH" | grep "virtual-size" | awk '{print $2}' | sed 's/,//')
   if [[ "$(($image_size_in_bytes % ($GIB_IN_BYTES * 2)))" != "0" ]]; then
