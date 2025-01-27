@@ -57,7 +57,8 @@ LABEL maintainer="Benjy Ross <benjy@benjyross.xyz>"
 
 # Copy all libraries explicitly
 COPY --from=qemu-builder /usr/lib /usr/lib
-
+COPY --from=qemu-builder /usr/libexec/qemu /usr/libexec/qemu
+COPY --from=qemu-builder /usr/share/qemu /usr/share/qemu
 
 # Install GPIO support tools
 COPY --from=gpio-builder /usr/bin/gpiodetect /usr/local/bin/gpiodetect
