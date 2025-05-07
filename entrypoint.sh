@@ -1,84 +1,47 @@
-#!/bin/sh
-# Raspberry Pi Emulation Script with Enhanced Pi 5 Support
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Constants
-GIB_IN_BYTES="1073741824"
-DEFAULT_TARGET="pi4"
-IMAGE_PATH="/sdcard/filesystem.img"
+cd ~
 
-# Detect and prepare filesystem image
-prepare_filesystem() {
+# Read the image filename from setup
+if [[ ! -f filename.info ]]; then
+  echo "Error: filename.info not found. Run setup.sh first." >&2
+  exit 1
+fi
+IMG=$(cat filename.info)
 
-  echo "changing size of image"
-  # Resize image if needed
-  image_size_in_bytes=$(qemu-img info --output json "$IMAGE_PATH" | grep "virtual-size" | awk '{print $2}' | sed 's/,//')
-  if [[ "$(($image_size_in_bytes % ($GIB_IN_BYTES * 2)))" != "0" ]]; then
-    new_size_in_gib=$((($image_size_in_bytes / ($GIB_IN_BYTES * 2) + 1) * 2))
-    echo "Rounding image size up to ${new_size_in_gib}GiB..."
-    qemu-img resize "$IMAGE_PATH" "${new_size_in_gib}G"
+# Check for required files
+for f in bcm2711-rpi-4-b.dtb bcm2710-rpi-3-b-plus.dtb kernel8.img; do
+  if [[ ! -f $f ]]; then
+    echo "Error: Required file $f not found in home directory. Run setup.sh first." >&2
+    exit 1
   fi
-}
+done
 
-# Configure model-specific parameters
-configure_model() {
-  local target="$1"
-  
-  case "$target" in
-    "pi4")
-      EMULATOR="qemu-system-aarch64"
-      MACHINE="raspi4b"
-      KERNEL="/root/kernels/pi4/kernel7l.img"
-      DTB="/root/kernels/pi4/bcm2711-rpi-4-b.dtb"
-      MEMORY="4096m"
-      ROOT="/dev/mmcblk0p2"
-      CPU="cortex-a72"
-      ;;
-    
-    "pi5")
-      # Note: Limited QEMU support for Pi 5
-      EMULATOR="qemu-system-aarch64"
-      MACHINE="virt"  # Fallback to generic virt machine
-      KERNEL="/root/kernels/pi5/kernel_2712.img"
-      DTB="/root/kernels/pi5/bcm2712-rpi-5-b.dtb"
-      MEMORY="8192m"
-      ROOT="/dev/mmcblk0p2"
-      CPU="cortex-a76"
-      # Additional workarounds for Pi 5 emulation
-      EXTRA_ARGS="-cpu max -smp 4"
-      ;;
-    
-    *)
-      echo "Unsupported Raspberry Pi model: ${target}"
-      exit 1
-      ;;
-  esac
-}
+# Default: Pi 4
+MACHINE="raspi4b"
+DTB="bcm2711-rpi-4-b.dtb"
+KERNEL="kernel8.img"
+QEMU_BIN="qemu-system-aarch64"
+APPEND="console=ttyAMA0,115200 root=/dev/mmcblk0p2 rw"
 
-# Main execution
-main() {
-  local target="${1:-$DEFAULT_TARGET}"
-  
-  # Prepare filesystem
-  prepare_filesystem
-  
-  # Configure model-specific parameters
-  configure_model "$target"
-  
-  # QEMU Launch Command
-  exec "$EMULATOR" \
-    -machine "$MACHINE" \
-    -cpu "$CPU" \
-    -m "$MEMORY" \
-    -kernel "$KERNEL" \
-    -dtb "$DTB" \
-    -drive "file=${IMAGE_PATH},if=sd,format=raw" \
-    -net nic -net user,hostfwd=tcp::5022-:22 \
-    -display none \
-    -serial mon:stdio \
-    $EXTRA_ARGS \
-    -no-user-config \
-    -append "root=${ROOT} rootwait console=ttyAMA0,115200 quiet" 
-}
+# If first arg is 3b, switch to Pi 3 emulation
+if [[ "${1:-}" == "3b" ]]; then
+  MACHINE="raspi3b"
+  DTB="bcm2710-rpi-3-b-plus.dtb"
+  # kernel8.img is still used for 64-bit Pi 3 emulation
+fi
 
-# Execute main function with arguments
-main "$@"
+# Run QEMU
+exec $QEMU_BIN \
+  -M $MACHINE \
+  -m 1G \
+  -dtb $DTB \
+  -kernel $KERNEL \
+  -drive file="$IMG",format=raw,if=sd,cache=writeback \
+  -append "$APPEND" \
+  -serial stdio \
+  -device usb-net,netdev=net0 \
+  -netdev user,id=net0,hostfwd=tcp::2222-:22 \
+  -no-reboot -display none \
+  -nographic

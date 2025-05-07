@@ -32,15 +32,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-build-
 
-      - name: Build dockerpi:vm
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          target: dockerpi-vm
-          load: true
-          tags: brrock/dockerpi:vm
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
 
       - name: Build dockerpi
         uses: docker/build-push-action@v5

@@ -1,0 +1,2 @@
+# Plans for this repo
+QEMU is a bit limited for Pi 5 emulation, and since I have a low-powered PC, I need to lower the number of cores for the Pi 4 to test things. So, I will make a separate fork that addresses those problems. Until then, Pi 5 support is simply not possible.
