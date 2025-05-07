@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash 
 
 # Exit immediately if a command exits with a non-zero status.
 set -euo pipefail
@@ -11,7 +11,11 @@ readonly compressed_suffix="-raspios-bookworm-arm64-lite.img.xz"
 # The part of the filename *after* the date for the decompressed image
 readonly image_suffix="-raspios-bookworm-arm64-lite.img"
 # Hardcoded user:password hash (user: pi, pass: raspberry)
-readonly user_conf_line='pi:$6$rBoByrWRKMY1EHFy$ho.LISnfm83CLBWBE/yqJ6Lq1TinRlxw/ImMTPcvvMuUfhQYcMmFnpFXUPowjy2br1NA0IACwF9JKugSNuHoe0'
+readonly user_conf_line='pi:$6$rBoByrWRKMY1EHFy$ho.LISnfm83CLBWBE/yqJ6Lq1TinRlxw/ImMTPcvcMuUfhQYcMmFnpFXUPowjy2br1NA0IACwF9JKugSNuHoe0'
+
+# Specific override for the 2025-05-07 directory due to filename mismatch
+readonly problematic_dir="raspios_lite_arm64-2025-05-07/"
+readonly override_filename="2025-05-06-raspios-bookworm-arm64-lite.img.xz"
 # ---
 
 # --- Helper Functions ---
@@ -42,7 +46,7 @@ check_deps() {
 # --- Main Script ---
 check_deps
 
-log "Finding the latest Raspberry Pi OS Lite (arm64) image..."
+log "Finding the latest Raspberry Pi OS Lite (arm64) image directory..."
 
 newest_dir=$(
     curl -sL "$base_url" |
@@ -56,21 +60,74 @@ if [[ -z "$newest_dir" ]]; then
 fi
 log "Latest directory found: $newest_dir"
 
-date_part=$(echo "$newest_dir" | grep -oP '\d{4}-\d{2}-\d{2}')
-if [[ -z "$date_part" ]]; then
-    error "Could not extract date from directory name '$newest_dir'."
-fi
-log "Extracted date: $date_part"
+# --- Logic to handle the potential filename mismatch ---
+compressed_filename="" # Initialize variable
 
-compressed_filename="${date_part}${compressed_suffix}"
+# Check if the latest directory is the one with the known issue
+if [[ "$newest_dir" == "$problematic_dir" ]]; then
+    log "Detected known problematic directory '$newest_dir'. Using hardcoded filename override."
+    compressed_filename="$override_filename"
+    # Extract date part from the override filename for the decompressed image name
+    date_part=$(echo "$compressed_filename" | grep -oP '\d{4}-\d{2}-\d{2}')
+     if [[ -z "$date_part" ]]; then
+        error "Could not extract date from override filename '$compressed_filename'."
+    fi
+else
+    log "Latest directory is standard. Checking directory contents for filename..."
+    # Construct the URL for the directory listing
+    directory_url="${base_url}${newest_dir}"
+
+    # List files in the directory and look for the compressed image
+    compressed_filename=$(
+        curl -sL "$directory_url" |
+        grep -oP '\d{4}-\d{2}-\d{2}'"${compressed_suffix}" |
+        tail -n 1 # In case there are multiple, take the last one (usually the latest)
+    )
+
+    if [[ -z "$compressed_filename" ]]; then
+        # Fallback: If we couldn't find a filename with the expected pattern,
+        # try to derive it from the directory date as a last resort.
+        log "Could not find compressed image filename with date prefix in directory listing. Falling back to directory date."
+        date_part=$(echo "$newest_dir" | grep -oP '\d{4}-\d{2}-\d{2}')
+        if [[ -z "$date_part" ]]; then
+            error "Could not extract date from directory name '$newest_dir'."
+        fi
+        compressed_filename="${date_part}${compressed_suffix}"
+        log "Constructed filename from directory date: $compressed_filename"
+    else
+        log "Found compressed image filename: $compressed_filename"
+        # Extract the date part from the found filename
+        date_part=$(echo "$compressed_filename" | grep -oP '\d{4}-\d{2}-\d{2}')
+        if [[ -z "$date_part" ]]; then
+           # This shouldn't happen if the filename pattern matched, but for safety:
+           log "Warning: Could not extract date from found filename '$compressed_filename'."
+           # Still attempt to proceed, the download might still work.
+        fi
+    fi
+fi
+# --- End of filename mismatch handling ---
+
+# Ensure we have a date_part defined for the decompressed filename
+if [[ -z "$date_part" ]]; then
+    # As a final fallback, try to get the date from the *found* compressed filename
+    # This covers the override case where date_part was extracted from override_filename
+    date_part=$(echo "$compressed_filename" | grep -oP '\d{4}-\d{2}-\d{2}')
+    if [[ -z "$date_part" ]]; then
+        error "Could not determine date part for the decompressed filename."
+    fi
+fi
+
 image_filename="${date_part}${image_suffix}"
-download_url="${base_url}${newest_dir}${compressed_filename}"
+download_url="${base_url}${newest_dir}${compressed_filename}" # Use the correct directory_url and determined compressed_filename
 
 log "Filename to download: $compressed_filename"
+log "Image filename after decompression will be: $image_filename"
 log "Download URL: $download_url"
 
 if [[ ! -f "$compressed_filename" ]]; then
     log "Starting download..."
+    # Use -C - to resume downloads, but it might not work with all servers or file types.
+    # For simplicity, we'll stick to clean downloads or skip if present.
     if ! curl -fSL -o "$compressed_filename" "$download_url"; then
         rm -f "$compressed_filename" 2>/dev/null
         error "Download failed from $download_url."
@@ -125,19 +182,15 @@ readonly sector_size="$sector_size_val"
 log "Determined sector size: $sector_size bytes"
 
 # Find the start sector of the first partition that is FAT32.
-# Device Boot Start End Sectors Size Id Type
-# <image_filename>1 * 2048 526335 524288 256M c W95 FAT32 (LBA)
-# <image_filename>p1 * 2048 526335 524288 256M c W95 FAT32 (LBA)
-# Sometimes the device name is not printed on the partition line itself.
-start_sector_val=$(echo "$fdisk_output" | awk -v image_basename_prefix="${image_filename%%.*}" '
-    ($1 ~ image_basename_prefix || $1 ~ /[0-9]$/ || $1 ~ /\*$/ || $2 ~ /\*$/ || $1 ~ /^\s*[0-9]+$/ || $2 ~ /^\s*[0-9]+$/) && \
+start_sector_val=$(echo "$fdisk_output" | awk -v image_basename="${image_filename##*/}" '
+    ($1 ~ image_basename || $1 ~ /[0-9]$/ || $1 ~ /\*$/ || $2 ~ /\*$/ || $1 ~ /^\s*[0-9]+$/ || $2 ~ /^\s*[0-9]+$/) && \
     /FAT32/ && !/Extended/ {
         val_to_check = ""
         if ($2 == "*") { # Boot flag present, start sector is $3
             val_to_check = $3
-        } else if ($1 ~ image_basename_prefix && $2 ~ /^[0-9]+$/) { # Device name in $1, start sector in $2
+        } else if ($1 ~ image_basename && $2 ~ /^[0-9]+$/) { # Device name in $1, start sector in $2
              val_to_check = $2
-        } else if ($1 ~ /^[0-9]+$/ && $0 ~ image_basename_prefix) { # Device name in $1 (no suffix), start sector in $1
+        } else if ($1 ~ /^[0-9]+$/ && $0 ~ image_basename) { # Device name in $1 (no suffix), start sector in $1
              val_to_check = $1 # This case is less likely for start sector, usually $2 or $3
         } else { # Try $2 as start sector by default if no boot flag
              val_to_check = $2
@@ -179,7 +232,7 @@ if ! mcopy -o -v "x:/bcm2711-rpi-4-b.dtb" .; then
     log "Warning: bcm2711-rpi-4-b.dtb not found in boot partition or mcopy failed."
     exit 1
 fi
-# copy pi5 even though unavaliable as a qemu fork is imcoming 
+# copy pi5 even though unavaliable as a qemu fork is imcoming
 if ! mcopy -o -v "x:/bcm2712-rpi-5-b.dtb" .; then
     log "Warning: bcm2712-rpi-5-b.dtb not found in boot partition or mcopy failed."
     exit 1
@@ -187,7 +240,7 @@ fi
 if ! mcopy -o -v "x:/kernel8.img" .; then
     error "Failed to copy kernel8.img from boot partition using mtools."
 fi
-log ".dtb files and kernel copied using mtools."
+log ".dtb files (if present) and kernel copied using mtools."
 
 log "Configuring user and enabling SSH using mtools..."
 # Create ssh and userconf files locally first
@@ -241,10 +294,8 @@ log "Image resized successfully."
 
 # Write results to local files
 output_filename_info="filename.info"
-output_size_info="nextpoweroftwo.info"
 echo "$image_filename" > "$output_filename_info"
-echo "$next_power_of_2" > "$output_size_info"
-log "Results written to '$output_filename_info' and '$output_size_info'."
+log "Results written to '$output_filename_info'."
 
 log "Script finished successfully."
 exit 0
