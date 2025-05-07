@@ -12,7 +12,7 @@ RUN apt update && \
     xz-utils \
     qemu-kvm && \
     rm -rf /var/lib/apt/lists/*
-    
+
 # Entrypoint Script
 
 COPY entrypoint.sh /bin/entrypoint.sh
@@ -23,7 +23,7 @@ RUN chmod +x /bin/entrypoint.sh
 
 RUN chmod +x /bin/setup.sh 
 
-RUN /bin/setup.sh
+RUN bash -c /bin/setup.sh
 
 VOLUME /sdcard
 
