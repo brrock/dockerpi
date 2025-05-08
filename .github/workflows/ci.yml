@@ -25,7 +25,8 @@ jobs:
         with:
           install: true
           driver-opts: image=moby/buildkit:master,network=host
-
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
       # Cache Docker layers to speed up builds
       - name: Cache Docker layers
         uses: actions/cache@v4
@@ -37,6 +38,8 @@ jobs:
 
       - name: Build image and gets dtbs and kernels
         run: |
+          sudo apt update
+          sudo apt install mtools
           chmod +x setup.sh
           ./setup.sh
       - name: Build dockerpi
@@ -44,6 +47,7 @@ jobs:
         with:
           context: .
           target: dockerpi
+          platforms: linux/arm64,linux/amd64
           load: true
           tags: brrock/dockerpi:latest
           cache-from: type=local,src=/tmp/.buildx-cache
