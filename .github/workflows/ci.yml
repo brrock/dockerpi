@@ -45,8 +45,8 @@ jobs:
         run: |
           sudo apt update
           sudo apt install mtools qemu-utils
-          chmod +x setup.sh
-          ./setup.sh
+          chmod +x prep.sh
+          ./prep.sh
       - name: Build dockerpi
         uses: docker/build-push-action@v5
         with:

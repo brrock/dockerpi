@@ -5,7 +5,7 @@ cd ~
 
 # Read the image filename from setup
 if [[ ! -f filename.info ]]; then
-  echo "Error: filename.info not found. Run setup.sh first." >&2
+  echo "Error: filename.info not found. Run prep.sh first." >&2
   exit 1
 fi
 IMG=$(cat filename.info)
@@ -13,7 +13,7 @@ IMG=$(cat filename.info)
 # Check for required files
 for f in bcm2711-rpi-4-b.dtb bcm2710-rpi-3-b-plus.dtb kernel8.img; do
   if [[ ! -f $f ]]; then
-    echo "Error: Required file $f not found in home directory. Run setup.sh first." >&2
+    echo "Error: Required file $f not found in home directory. Run prep.sh first." >&2
     exit 1
   fi
 done

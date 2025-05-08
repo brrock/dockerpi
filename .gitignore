@@ -1,4 +1,5 @@
 *.swp
 *.img
+*.img.xz
 *.dtb 
 filename.info
