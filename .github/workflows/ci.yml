@@ -60,9 +60,7 @@ jobs:
           platforms: linux/arm64,linux/amd64
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }} # Push only on main branch pushes
           tags: |
-            # Tag with latest on main push
             ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'brrock/dockerpi:latest' || '' }}
-            # Tag with PR number on PR builds
             ${{ github.event_name == 'pull_request' && format('brrock/dockerpi:pr-{0}', github.event.pull_request.number) || '' }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
