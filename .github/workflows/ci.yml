@@ -60,9 +60,3 @@ jobs:
 
       - name: Log image data
         run: docker images brrock/dockerpi
-
-      # Publish steps (only run on main branch)
-
-      - name: Push to Docker Hub
-        if: github.ref == 'refs/heads/main'
-        run: docker push --all-tags brrock/dockerpi
