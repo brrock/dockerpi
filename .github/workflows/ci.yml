@@ -39,7 +39,7 @@ jobs:
       - name: Build image and gets dtbs and kernels
         run: |
           sudo apt update
-          sudo apt install mtools
+          sudo apt install mtools qemu-img
           chmod +x setup.sh
           ./setup.sh
       - name: Build dockerpi
