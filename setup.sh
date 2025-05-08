@@ -2,7 +2,6 @@
 
 # Exit immediately if a command exits with a non-zero status.
 set -euo pipefail
-cd ~
 # --- Configuration ---
 readonly base_url="https://downloads.raspberrypi.com/raspios_lite_arm64/images/"
 readonly image_prefix="raspios_lite_arm64"

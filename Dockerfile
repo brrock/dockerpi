@@ -14,16 +14,12 @@ RUN apt update && \
     rm -rf /var/lib/apt/lists/*
 
 # Entrypoint Script
-
 COPY entrypoint.sh /bin/entrypoint.sh
-# set up
-COPY setup.sh /bin/setup.sh
-
+# Copy files
+COPY *.img ~/
+COPY filename.info ~/
+COPY *.dtb ~/
 RUN chmod +x /bin/entrypoint.sh 
-
-RUN chmod +x /bin/setup.sh 
-
-RUN bash -c /bin/setup.sh
 
 VOLUME /sdcard
 
